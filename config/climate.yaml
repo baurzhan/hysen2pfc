@@ -1,0 +1,24 @@
+# ***************************************
+#  HVACR Reception
+#  192.168.07.42
+#  34:ea:xx:yy:zz:ww
+# ***************************************
+- platform: hysen2pfc
+  name: Reception
+  host: 192.168.07.42
+  mac: '34:ea:xx:yy:zz:ww'
+  timeout: 10
+  scan_interval: 10
+  
+# ***************************************
+#  HVACR Meeting Room
+#  192.168.07.31
+#  34:f2:xx:yy:zz:ww
+# ***************************************
+- platform: hysen2pfc
+  name: Meeting Room
+  host: 192.168.07.31
+  mac: '34:f2:xx:yy:zz:ww'
+  timeout: 10
+  scan_interval: 10
+  
