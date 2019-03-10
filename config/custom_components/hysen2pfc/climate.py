@@ -247,12 +247,13 @@ HASS_FAN_TO_HYSEN = {
     STATE_AUTO   : HYSEN_2PFC_FAN_AUTO,
 }
 
-HYSEN_PERIOD_TO_HASS = {
+HYSEN_PERIOD_ENABLED_TO_HASS = {
     HYSEN_2PFC_PERIOD_ENABLED  : STATE_ON,
     HYSEN_2PFC_PERIOD_DISABLED : STATE_OFF,
 }
 
-HASS_PERIOD_TO_HYSEN = {
+HASS_PERIOD_ENABLED_TO_HYSEN = {
+    None  : None,
     True  : HYSEN_2PFC_PERIOD_ENABLED,
     False : HYSEN_2PFC_PERIOD_DISABLED,
 }
@@ -559,16 +560,16 @@ class Hysen2PipeFanCoil(ClimateDevice):
                 ATTR_CLOCK_SEC: int(self._hysen_device.clock_sec),
                 ATTR_CLOCK_WEEKDAY: int(self._hysen_device.clock_weekday),
                 ATTR_SCHEDULE: str(HYSEN_SCHEDULE_TO_HASS[self._hysen_device.schedule]),
-                ATTR_PERIOD1_ON_ENABLED: str(HYSEN_PERIOD_TO_HASS[self._hysen_device.period1_on_enabled]),
+                ATTR_PERIOD1_ON_ENABLED: str(HYSEN_PERIOD_ENABLED_TO_HASS[self._hysen_device.period1_on_enabled]),
                 ATTR_PERIOD1_ON_HOUR: int(self._hysen_device.period1_on_hour),
                 ATTR_PERIOD1_ON_MIN: int(self._hysen_device.period1_on_min),
-                ATTR_PERIOD1_OFF_ENABLED: str(HYSEN_PERIOD_TO_HASS[self._hysen_device.period1_off_enabled]),
+                ATTR_PERIOD1_OFF_ENABLED: str(HYSEN_PERIOD_ENABLED_TO_HASS[self._hysen_device.period1_off_enabled]),
                 ATTR_PERIOD1_OFF_HOUR: int(self._hysen_device.period1_off_hour),
                 ATTR_PERIOD1_OFF_MIN: int(self._hysen_device.period1_off_min),
-                ATTR_PERIOD2_ON_ENABLED: str(HYSEN_PERIOD_TO_HASS[self._hysen_device.period2_on_enabled]),
+                ATTR_PERIOD2_ON_ENABLED: str(HYSEN_PERIOD_ENABLED_TO_HASS[self._hysen_device.period2_on_enabled]),
                 ATTR_PERIOD2_ON_HOUR: int(self._hysen_device.period2_on_hour),
                 ATTR_PERIOD2_ON_MIN: int(self._hysen_device.period2_on_min),
-                ATTR_PERIOD2_OFF_ENABLED: str(HYSEN_PERIOD_TO_HASS[self._hysen_device.period2_off_enabled]),
+                ATTR_PERIOD2_OFF_ENABLED: str(HYSEN_PERIOD_ENABLED_TO_HASS[self._hysen_device.period2_off_enabled]),
                 ATTR_PERIOD2_OFF_HOUR: int(self._hysen_device.period2_off_hour),
                 ATTR_PERIOD2_OFF_MIN: int(self._hysen_device.period2_off_min),
                 ATTR_TIME_VALVE_ON: int(self._hysen_device.time_valve_on),
@@ -825,7 +826,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
         await self._try_command(
             "Error in set_period1_on",
             self._hysen_device.set_period1_on,
-            HASS_PERIOD_TO_HYSEN[enable],
+            HASS_PERIOD_ENABLED_TO_HYSEN[enable],
             hour,
             min)
 
@@ -834,7 +835,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
         await self._try_command(
             "Error in set_period1_off",
             self._hysen_device.set_period1_off,
-            HASS_PERIOD_TO_HYSEN[enable],
+            HASS_PERIOD_ENABLED_TO_HYSEN[enable],
             hour,
             min)
 
@@ -843,7 +844,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
         await self._try_command(
             "Error in set_period2_on",
             self._hysen_device.set_period2_on,
-            HASS_PERIOD_TO_HYSEN[enable],
+            HASS_PERIOD_ENABLED_TO_HYSEN[enable],
             hour,
             min)
 
@@ -852,7 +853,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
         await self._try_command(
             "Error in set_period2_off",
             self._hysen_device.set_period2_off,
-            HASS_PERIOD_TO_HYSEN[enable],
+            HASS_PERIOD_ENABLED_TO_HYSEN[enable],
             hour,
             min)
 
