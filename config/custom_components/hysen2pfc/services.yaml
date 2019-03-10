@@ -1,0 +1,322 @@
+# Describes the format for available climate services
+
+set_aux_heat:
+  description: Turn auxiliary heater on/off for climate device.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+    aux_heat:
+      description: New value of axillary heater.
+      example: true
+set_away_mode:
+  description: Turn away mode on/off for climate device.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+    away_mode:
+      description: New value of away mode.
+      example: true
+set_hold_mode:
+  description: Turn hold mode for climate device.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+    hold_mode:
+      description: New value of hold mode
+      example: 'away'
+set_temperature:
+  description: Set target temperature of climate device.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+    temperature:
+      description: New target temperature for HVAC.
+      example: 25
+    target_temp_high:
+      description: New target high tempereature for HVAC.
+      example: 26
+    target_temp_low:
+      description: New target low temperature for HVAC.
+      example: 20
+    operation_mode:
+      description: Operation mode to set temperature to. This defaults to current_operation mode if not set, or set incorrectly.
+      example: 'Heat'
+set_humidity:
+  description: Set target humidity of climate device.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+    humidity:
+      description: New target humidity for climate device.
+      example: 60
+set_fan_mode:
+  description: Set fan operation for climate device.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.nest'
+    fan_mode:
+      description: New value of fan mode.
+      example: On Low
+set_operation_mode:
+  description: Set operation mode for climate device.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.nest'
+    operation_mode:
+      description: New value of operation mode.
+      example: Heat
+set_swing_mode:
+  description: Set swing operation for climate device.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.nest'
+    swing_mode:
+      description: New value of swing mode.
+      example:
+
+turn_on:
+  description: Turn climate device on.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+
+turn_off:
+  description: Turn climate device off.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+
+ecobee_set_fan_min_on_time:
+  description: Set the minimum fan on time.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+    fan_min_on_time:
+      description: New value of fan min on time.
+      example: 5
+
+ecobee_resume_program:
+  description: Resume the programmed schedule.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+    resume_all:
+      description: Resume all events and return to the scheduled program. This default to false which removes only the top event.
+      example: true
+
+mill_set_room_temperature:
+  fields:
+  description: Set Mill room temperatures.
+    room_name:
+      description: Name of room to change.
+      example: 'kitchen'
+    away_temp:
+      description: Away temp.
+      example: 12
+    comfort_temp:
+      description: Comfort temp.
+      example: 22
+    sleep_temp:
+      description: Sleep temp.
+      example: 17
+
+nuheat_resume_program:
+  description: Resume the programmed schedule.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+
+sensibo_assume_state:
+  description: Set Sensibo device to external state.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.kitchen'
+    state:
+      description: State to set.
+      example: 'idle'
+
+hysen2pfc_set_key_lock:
+  description: Set Hysen 2 Pipe Fan Coil device key access.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.bathroom'
+    key_lock:
+      description: Set keys to unlocked/power_unlocked/locked.
+      example: 'unlocked'
+
+hysen2pfc_set_hysteresis:
+  description: Set Hysen 2 Pipe Fan Coil device hysteresis.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    hysteresis:
+      description: Set hysteresis 0.5/1.
+      example: '0.5'
+
+hysen2pfc_set_calibration:
+  description: Set Hysen 2 Pipe Fan Coil device calibration.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    calibration:
+      description: Set calibration between -5.0 and 5.0.
+      example: '-2.3'
+
+hysen2pfc_set_cooling_max_temp:
+  description: Set Hysen 2 Pipe Fan Coil device cooling maximum admitted temperature.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    temp:
+      description: Set maximum admitted temperature.
+      example: '40'
+
+hysen2pfc_set_cooling_min_temp:
+  description: Set Hysen 2 Pipe Fan Coil device cooling minimum admitted temperature.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    temp:
+      description: Set minimum admitted temperature.
+      example: '10'
+
+hysen2pfc_set_heating_max_temp:
+  description: Set Hysen 2 Pipe Fan Coil device heating maximum admitted temperature.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    temp:
+      description: Set maximum admitted temperature.
+      example: '40'
+
+hysen2pfc_set_heating_min_temp:
+  description: Set Hysen 2 Pipe Fan Coil device heating minimum admitted temperature.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    temp:
+      description: Set minimum admitted temperature.
+      example: '10'
+
+hysen2pfc_set_fan_control:
+  description: Set Hysen 2 Pipe Fan Coil device fan control.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    fan_control:
+      description: Set fan control on/off (true/false, 1/0, etc.).
+      example: 'on'
+
+hysen2pfc_set_frost_protection:
+  description: Set Hysen 2 Pipe Fan Coil device frost protection.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    frost_protection:
+      description: Set frost protection on/off (true/false, 1/0, etc.).
+      example: 'on'
+
+hysen2pfc_set_time_now:
+  description: Set Hysen 2 Pipe Fan Coil device time to system time.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+
+hysen2pfc_set_schedule:
+  description: Set Hysen 2 Pipe Fan Coil device weekly schedule type.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    schedule:
+      description: Set schedule today/12345/123456/1234567.
+      example: '1234567'
+      
+hysen2pfc_set_period1_on:
+  description: Set Hysen 2 Pipe Fan Coil device daily period 1 on enable and time.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    enable:
+      description: Set enable (optional) on/off (true/false, 1/0, etc.).
+      example: 'true'
+    hour:
+      description: Set hour (optional).
+      example: '8'
+    min:
+      description: Set min (optional).
+      example: '0'
+
+hysen2pfc_set_period1_off:
+  description: Set Hysen 2 Pipe Fan Coil device daily period 1 off enable and time.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    enable:
+      description: Set enable (optional) on/off (true/false, 1/0, etc.).
+      example: 'true'
+    hour:
+      description: Set hour (optional).
+      example: '11'
+    min:
+      description: Set min (optional).
+      example: '30'
+
+hysen2pfc_set_period2_on:
+  description: Set Hysen 2 Pipe Fan Coil device daily period 2 on enable and time.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    enable:
+      description: Set enable (optional) on/off (true/false, 1/0, etc.).
+      example: 'true'
+    hour:
+      description: Set hour (optional).
+      example: '12'
+    min:
+      description: Set min (optional).
+      example: '30'
+
+hysen2pfc_set_period2_off:
+  description: Set Hysen 2 Pipe Fan Coil device daily period 2 off enable and time.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.livingroom'
+    enable:
+      description: Set enable (optional) on/off (true/false, 1/0, etc.).
+      example: 'true'
+    hour:
+      description: Set hour (optional).
+      example: '17'
+    min:
+      description: Set min (optional).
+      example: '30'
+
