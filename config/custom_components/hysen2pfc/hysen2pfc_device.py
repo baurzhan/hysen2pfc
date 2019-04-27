@@ -8,8 +8,6 @@ from broadlink import device
 import logging
 from PyCRC.CRC16 import CRC16
 
-REQUIREMENTS = ['broadlink==0.9.0']
-
 _LOGGER = logging.getLogger(__name__)
 
 HYSEN_2PFC_REMOTE_LOCK_OFF      = 0
