@@ -117,8 +117,8 @@ ecobee_resume_program:
       example: true
 
 mill_set_room_temperature:
+  description: Set Mill room temperatures.
   fields:
-    description: Set Mill room temperatures.
     room_name:
       description: Name of room to change.
       example: 'kitchen'
