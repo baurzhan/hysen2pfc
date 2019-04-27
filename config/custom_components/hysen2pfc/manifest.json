@@ -1,0 +1,8 @@
+{
+  "domain": "your_domain_name",
+  "name": "hysen2pfc",
+  "documentation": "https://github.com/uspass/hysen2pfc/blob/master/README.md",
+  "dependencies": [],
+  "codeowners": ["@uss"],
+  "requirements": ["broadlink==0.9.0"]
+}
