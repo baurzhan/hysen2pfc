@@ -1,110 +1,185 @@
 """
-Hysen Controller for 2 Pipe Fan Coil Interface
-Hysen HY03AC-1-Wifi device and derivative
-http://www.xmhysen.com/products_detail/productId=201.html
+Class Broadlink device
+Based on the work from
+https://github.com/mjg59/python-broadlink
 """
 
-from broadlink import device
-import logging
+import random
+import socket
+import threading
+import time
 from PyCRC.CRC16 import CRC16
+
+try:
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.backends import default_backend
+except ImportError:
+    import pyaes
+
+import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-HYSEN_2PFC_REMOTE_LOCK_OFF      = 0
-HYSEN_2PFC_REMOTE_LOCK_ON       = 1
+class broadlink_device:
+    def __init__(self, host, mac, devtype, timeout=10):
+        self.host = host
+        self.mac = mac.encode() if isinstance(mac, str) else mac
+        self.devtype = devtype
+        self.timeout = timeout
+        self.count = random.randrange(0xffff)
+        self.iv = bytearray(
+            [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
+        self.id = bytearray([0, 0, 0, 0])
+        self.cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.cs.bind(('', 0))
+        self.type = "Unknown"
+        self.lock = threading.Lock()
 
-HYSEN_2PFC_KEY_ALL_UNLOCKED     = 0
-HYSEN_2PFC_KEY_POWER_UNLOCKED   = 1
-HYSEN_2PFC_KEY_ALL_LOCKED       = 2
+        if 'pyaes' in globals():
+            self.encrypt = self.encrypt_pyaes
+            self.decrypt = self.decrypt_pyaes
+            self.update_aes = self.update_aes_pyaes
 
-HYSEN_2PFC_POWER_OFF            = 0
-HYSEN_2PFC_POWER_ON             = 1
+        else:
+            self.encrypt = self.encrypt_crypto
+            self.decrypt = self.decrypt_crypto
+            self.update_aes = self.update_aes_crypto
 
-HYSEN_2PFC_VALVE_OFF            = 0
-HYSEN_2PFC_VALVE_ON             = 1
+        self.aes = None
+        key = bytearray(
+            [0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
+        self.update_aes(key)
 
-HYSEN_2PFC_HYSTERESIS_HALVE     = 0
-HYSEN_2PFC_HYSTERESIS_WHOLE     = 1
+    def update_aes_pyaes(self, key):
+        self.aes = pyaes.AESModeOfOperationCBC(key, iv=bytes(self.iv))
 
-HYSEN_2PFC_CALIBRATION_MIN      = -5.0
-HYSEN_2PFC_CALIBRATION_MAX      = 5.0
+    def encrypt_pyaes(self, payload):
+        return b"".join([self.aes.encrypt(bytes(payload[i:i + 16])) for i in range(0, len(payload), 16)])
 
-HYSEN_2PFC_FAN_LOW              = 1
-HYSEN_2PFC_FAN_MEDIUM           = 2
-HYSEN_2PFC_FAN_HIGH             = 3
-HYSEN_2PFC_FAN_AUTO             = 4
+    def decrypt_pyaes(self, payload):
+        return b"".join([self.aes.decrypt(bytes(payload[i:i + 16])) for i in range(0, len(payload), 16)])
 
-HYSEN_2PFC_MODE_FAN             = 1
-HYSEN_2PFC_MODE_COOL            = 2
-HYSEN_2PFC_MODE_HEAT            = 3
+    def update_aes_crypto(self, key):
+        self.aes = Cipher(algorithms.AES(key), modes.CBC(self.iv),
+                          backend=default_backend())
 
-HYSEN_2PFC_FAN_CONTROL_ON       = 0
-HYSEN_2PFC_FAN_CONTROL_OFF      = 1
+    def encrypt_crypto(self, payload):
+        encryptor = self.aes.encryptor()
+        return encryptor.update(payload) + encryptor.finalize()
 
-HYSEN_2PFC_FROST_PROTECTION_OFF = 0
-HYSEN_2PFC_FROST_PROTECTION_ON  = 1
+    def decrypt_crypto(self, payload):
+        decryptor = self.aes.decryptor()
+        return decryptor.update(payload) + decryptor.finalize()
 
-HYSEN_2PFC_SCHEDULE_TODAY       = 0
-HYSEN_2PFC_SCHEDULE_12345_67    = 1
-HYSEN_2PFC_SCHEDULE_123456_7    = 2
-HYSEN_2PFC_SCHEDULE_1234567     = 3
+    def auth(self):
+        payload = bytearray(0x50)
+        payload[0x04] = 0x31
+        payload[0x05] = 0x31
+        payload[0x06] = 0x31
+        payload[0x07] = 0x31
+        payload[0x08] = 0x31
+        payload[0x09] = 0x31
+        payload[0x0a] = 0x31
+        payload[0x0b] = 0x31
+        payload[0x0c] = 0x31
+        payload[0x0d] = 0x31
+        payload[0x0e] = 0x31
+        payload[0x0f] = 0x31
+        payload[0x10] = 0x31
+        payload[0x11] = 0x31
+        payload[0x12] = 0x31
+        payload[0x1e] = 0x01
+        payload[0x2d] = 0x01
+        payload[0x30] = ord('T')
+        payload[0x31] = ord('e')
+        payload[0x32] = ord('s')
+        payload[0x33] = ord('t')
+        payload[0x34] = ord(' ')
+        payload[0x35] = ord(' ')
+        payload[0x36] = ord('1')
 
-HYSEN_2PFC_PERIOD_DISABLED      = 0
-HYSEN_2PFC_PERIOD_ENABLED       = 1
+        response = self.send_packet(0x65, payload)
 
-HYSEN_2PFC_COOLING_MAX_TEMP     = 40
-HYSEN_2PFC_COOLING_MIN_TEMP     = 10
-HYSEN_2PFC_HEATING_MAX_TEMP     = 40
-HYSEN_2PFC_HEATING_MIN_TEMP     = 10
+        payload = self.decrypt(response[0x38:])
 
-HYSEN_2PFC_MAX_TEMP             = 40
-HYSEN_2PFC_MIN_TEMP             = 10
+        if not payload:
+            return False
 
-HYSEN_2PFC_DEFAULT_TARGET_TEMP  = 22
-HYSEN_2PFC_DEFAULT_CALIBRATION  = 0.0
+        key = payload[0x04:0x14]
+        if len(key) % 16 != 0:
+            return False
 
-class Hysen2PipeFanCoilDevice(device):
-    
-    def __init__ (self, host, mac, devtype, timeout):
-        device.__init__(self, host, mac, devtype, timeout)
-        self.type = "Hysen 2 Pipe Fan Coil Controller"
-        self._host = host[0]
-        
-        self.remote_lock = HYSEN_2PFC_REMOTE_LOCK_OFF
-        self.key_lock = HYSEN_2PFC_KEY_ALL_UNLOCKED
-        self.valve_state = HYSEN_2PFC_VALVE_OFF
-        self.power_state = HYSEN_2PFC_POWER_ON
-        self.operation_mode = HYSEN_2PFC_MODE_FAN
-        self.fan_mode = HYSEN_2PFC_FAN_LOW
-        self.room_temp = 0        
-        self.target_temp = HYSEN_2PFC_DEFAULT_TARGET_TEMP
-        self.hysteresis = HYSEN_2PFC_HYSTERESIS_WHOLE
-        self.calibration = HYSEN_2PFC_DEFAULT_CALIBRATION
-        self.cooling_max_temp = HYSEN_2PFC_MAX_TEMP
-        self.cooling_min_temp = HYSEN_2PFC_MIN_TEMP
-        self.heating_max_temp = HYSEN_2PFC_MAX_TEMP
-        self.heating_min_temp = HYSEN_2PFC_MIN_TEMP
-        self.fan_control = HYSEN_2PFC_FAN_CONTROL_ON
-        self.frost_protection = HYSEN_2PFC_FROST_PROTECTION_ON
-        self.clock_hour = 0
-        self.clock_min = 0
-        self.clock_sec = 0
-        self.clock_weekday = 1
-        self.unknown = 0
-        self.schedule = HYSEN_2PFC_SCHEDULE_TODAY
-        self.period1_on_enabled = HYSEN_2PFC_PERIOD_DISABLED
-        self.period1_on_hour = 0
-        self.period1_on_min = 0
-        self.period1_off_enabled = HYSEN_2PFC_PERIOD_DISABLED
-        self.period1_off_hour = 0
-        self.period1_off_min = 0
-        self.period2_on_enabled = HYSEN_2PFC_PERIOD_DISABLED
-        self.period2_on_hour = 0
-        self.period2_on_min = 0
-        self.period2_off_enabled = HYSEN_2PFC_PERIOD_DISABLED
-        self.period2_off_hour = 0
-        self.period2_off_min = 0
-        self.time_valve_on = 0
+        self.id = payload[0x00:0x04]
+        self.update_aes(key)
+
+        return True
+
+    def send_packet(self, command, payload):
+        self.count = (self.count + 1) & 0xffff
+        packet = bytearray(0x38)
+        packet[0x00] = 0x5a
+        packet[0x01] = 0xa5
+        packet[0x02] = 0xaa
+        packet[0x03] = 0x55
+        packet[0x04] = 0x5a
+        packet[0x05] = 0xa5
+        packet[0x06] = 0xaa
+        packet[0x07] = 0x55
+        packet[0x24] = 0x2a
+        packet[0x25] = 0x27
+        packet[0x26] = command
+        packet[0x28] = self.count & 0xff
+        packet[0x29] = self.count >> 8
+        packet[0x2a] = self.mac[0]
+        packet[0x2b] = self.mac[1]
+        packet[0x2c] = self.mac[2]
+        packet[0x2d] = self.mac[3]
+        packet[0x2e] = self.mac[4]
+        packet[0x2f] = self.mac[5]
+        packet[0x30] = self.id[0]
+        packet[0x31] = self.id[1]
+        packet[0x32] = self.id[2]
+        packet[0x33] = self.id[3]
+
+        # pad the payload for AES encryption
+        if payload:
+            numpad = (len(payload) // 16 + 1) * 16
+            payload = payload.ljust(numpad, b"\x00")
+
+        checksum = 0xbeaf
+        for i in range(len(payload)):
+            checksum += payload[i]
+            checksum = checksum & 0xffff
+
+        payload = self.encrypt(payload)
+
+        packet[0x34] = checksum & 0xff
+        packet[0x35] = checksum >> 8
+
+        for i in range(len(payload)):
+            packet.append(payload[i])
+
+        checksum = 0xbeaf
+        for i in range(len(packet)):
+            checksum += packet[i]
+            checksum = checksum & 0xffff
+        packet[0x20] = checksum & 0xff
+        packet[0x21] = checksum >> 8
+
+        start_time = time.time()
+        with self.lock:
+            while True:
+                try:
+                    self.cs.sendto(packet, self.host)
+                    self.cs.settimeout(1)
+                    response = self.cs.recvfrom(2048)
+                    break
+                except socket.timeout:
+                    if (time.time() - start_time) > self.timeout:
+                        raise
+        return bytearray(response[0])
 
     # Send a request
     # Returns decrypted payload
@@ -245,30 +320,134 @@ class Hysen2PipeFanCoilDevice(device):
         # check if return response is right
         if (input_payload[0:2] == bytearray([0x01, 0x06])) and \
            (input_payload != return_payload):
-            _LOGGER.debug("[%s] request %s response %s",
-                self._host,
+            _LOGGER.error("[%s] request %s response %s",
+                self.host,
                 ' '.join(format(x, '02x') for x in bytearray(input_payload)),
                 ' '.join(format(x, '02x') for x in bytearray(return_payload)))
+            self.auth()
             raise ValueError('hysen_response_error','response is wrong')
         elif (input_payload[0:2] == bytearray([0x01, 0x10])) and \
              (input_payload[0:6] != return_payload):
-            _LOGGER.debug("[%s] request %s response %s",
-                self._host,
+            _LOGGER.error("[%s] request %s response %s",
+                self.host,
                 ' '.join(format(x, '02x') for x in bytearray(input_payload)),
                 ' '.join(format(x, '02x') for x in bytearray(return_payload)))
+            self.auth()
             raise ValueError('hysen_response_error','response is wrong')
         elif (input_payload[0:2] == bytearray([0x01, 0x03])) and \
              ((input_payload[0:2] != return_payload[0:2]) or \
              ((2 * input_payload[5]) != return_payload[2]) or \
              ((2 * input_payload[5]) != len(return_payload[3:]))):
-            _LOGGER.debug("[%s] request %s response %s",
-                self._host,
+            _LOGGER.error("[%s] request %s response %s",
+                self.host,
                 ' '.join(format(x, '02x') for x in bytearray(input_payload)),
                 ' '.join(format(x, '02x') for x in bytearray(return_payload)))
+            self.auth()
             raise ValueError('hysen_response_error','response is wrong')
         else:
             return return_payload
 
+"""
+Hysen Controller for 2 Pipe Fan Coil Interface
+Hysen HY03AC-x-Wifi device and derivative
+http://www.xmhysen.com/products_detail/productId=201.html
+"""
+
+HYSEN_2PFC_REMOTE_LOCK_OFF      = 0
+HYSEN_2PFC_REMOTE_LOCK_ON       = 1
+
+HYSEN_2PFC_KEY_ALL_UNLOCKED     = 0
+HYSEN_2PFC_KEY_POWER_UNLOCKED   = 1
+HYSEN_2PFC_KEY_ALL_LOCKED       = 2
+
+HYSEN_2PFC_POWER_OFF            = 0
+HYSEN_2PFC_POWER_ON             = 1
+
+HYSEN_2PFC_VALVE_OFF            = 0
+HYSEN_2PFC_VALVE_ON             = 1
+
+HYSEN_2PFC_HYSTERESIS_HALVE     = 0
+HYSEN_2PFC_HYSTERESIS_WHOLE     = 1
+
+HYSEN_2PFC_CALIBRATION_MIN      = -5.0
+HYSEN_2PFC_CALIBRATION_MAX      = 5.0
+
+HYSEN_2PFC_FAN_LOW              = 1
+HYSEN_2PFC_FAN_MEDIUM           = 2
+HYSEN_2PFC_FAN_HIGH             = 3
+HYSEN_2PFC_FAN_AUTO             = 4
+
+HYSEN_2PFC_MODE_FAN             = 1
+HYSEN_2PFC_MODE_COOL            = 2
+HYSEN_2PFC_MODE_HEAT            = 3
+
+HYSEN_2PFC_FAN_CONTROL_ON       = 0
+HYSEN_2PFC_FAN_CONTROL_OFF      = 1
+
+HYSEN_2PFC_FROST_PROTECTION_OFF = 0
+HYSEN_2PFC_FROST_PROTECTION_ON  = 1
+
+HYSEN_2PFC_SCHEDULE_TODAY       = 0
+HYSEN_2PFC_SCHEDULE_12345_67    = 1
+HYSEN_2PFC_SCHEDULE_123456_7    = 2
+HYSEN_2PFC_SCHEDULE_1234567     = 3
+
+HYSEN_2PFC_PERIOD_DISABLED      = 0
+HYSEN_2PFC_PERIOD_ENABLED       = 1
+
+HYSEN_2PFC_COOLING_MAX_TEMP     = 40
+HYSEN_2PFC_COOLING_MIN_TEMP     = 10
+HYSEN_2PFC_HEATING_MAX_TEMP     = 40
+HYSEN_2PFC_HEATING_MIN_TEMP     = 10
+
+HYSEN_2PFC_MAX_TEMP             = 40
+HYSEN_2PFC_MIN_TEMP             = 10
+
+HYSEN_2PFC_DEFAULT_TARGET_TEMP  = 22
+HYSEN_2PFC_DEFAULT_CALIBRATION  = 0.0
+
+class Hysen2PipeFanCoilDevice(broadlink_device):
+    
+    def __init__ (self, host, mac, devtype, timeout):
+        broadlink_device.__init__(self, host, mac, devtype, timeout)
+        self.type = "Hysen 2 Pipe Fan Coil Controller"
+        self._host = host[0]
+        
+        self.remote_lock = HYSEN_2PFC_REMOTE_LOCK_OFF
+        self.key_lock = HYSEN_2PFC_KEY_ALL_UNLOCKED
+        self.valve_state = HYSEN_2PFC_VALVE_OFF
+        self.power_state = HYSEN_2PFC_POWER_ON
+        self.operation_mode = HYSEN_2PFC_MODE_FAN
+        self.fan_mode = HYSEN_2PFC_FAN_LOW
+        self.room_temp = 0        
+        self.target_temp = HYSEN_2PFC_DEFAULT_TARGET_TEMP
+        self.hysteresis = HYSEN_2PFC_HYSTERESIS_WHOLE
+        self.calibration = HYSEN_2PFC_DEFAULT_CALIBRATION
+        self.cooling_max_temp = HYSEN_2PFC_MAX_TEMP
+        self.cooling_min_temp = HYSEN_2PFC_MIN_TEMP
+        self.heating_max_temp = HYSEN_2PFC_MAX_TEMP
+        self.heating_min_temp = HYSEN_2PFC_MIN_TEMP
+        self.fan_control = HYSEN_2PFC_FAN_CONTROL_ON
+        self.frost_protection = HYSEN_2PFC_FROST_PROTECTION_ON
+        self.clock_hour = 0
+        self.clock_min = 0
+        self.clock_sec = 0
+        self.clock_weekday = 1
+        self.unknown = 0
+        self.schedule = HYSEN_2PFC_SCHEDULE_TODAY
+        self.period1_on_enabled = HYSEN_2PFC_PERIOD_DISABLED
+        self.period1_on_hour = 0
+        self.period1_on_min = 0
+        self.period1_off_enabled = HYSEN_2PFC_PERIOD_DISABLED
+        self.period1_off_hour = 0
+        self.period1_off_min = 0
+        self.period2_on_enabled = HYSEN_2PFC_PERIOD_DISABLED
+        self.period2_on_hour = 0
+        self.period2_on_min = 0
+        self.period2_off_enabled = HYSEN_2PFC_PERIOD_DISABLED
+        self.period2_off_hour = 0
+        self.period2_off_min = 0
+        self.time_valve_on = 0
 
     # set lock and power
     # 0x01, 0x06, 0x00, 0x00, 0xrk, 0x0p
