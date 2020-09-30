@@ -4,5 +4,5 @@
   "documentation": "https://github.com/uspass/hysen2pfc/blob/master/README.md",
   "dependencies": [],
   "codeowners": ["@uss"],
-  "requirements": ["cryptography==2.6.1"]
+  "requirements": ["pythoncrc==1.21"]
 }
