@@ -19,7 +19,6 @@ from homeassistant.components.climate.const import (
     SUPPORT_TARGET_TEMPERATURE,
     SUPPORT_FAN_MODE,
     SUPPORT_PRESET_MODE,
-    SUPPORT_SWING_MODE,
     SUPPORT_AUX_HEAT,
     HVAC_MODE_HEAT,
     HVAC_MODE_COOL,
@@ -691,12 +690,12 @@ class Hysen2PipeFanCoil(ClimateDevice):
         return self._hysen_device.power_state
 
     @property
-    def current_fan_mode(self):
+    def fan_mode(self):
         """Return the current fan speed."""
         return HYSEN_FAN_TO_HASS[self._hysen_device.fan_mode]
 
     @property
-    def fan_list(self):
+    def fan_modes(self):
         """Returns the list of available fan modes."""
         if self._hysen_device.operation_mode == HYSEN_2PFC_MODE_FAN:
             return FAN_MODES_MANUAL
@@ -709,8 +708,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
         if self._hysen_device.operation_mode == HYSEN_2PFC_MODE_FAN:
             return SUPPORT_FAN_MODE
         else:
-            return SUPPORT_FAN_MODE | SUPPORT_TARGET_TEMPERATURE | SUPPORT_SWING_MODE
-
+            return SUPPORT_FAN_MODE | SUPPORT_TARGET_TEMPERATURE
     @property
     def min_temp(self):
         """Returns the minimum supported temperature."""
