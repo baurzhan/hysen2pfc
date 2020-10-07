@@ -1,7 +1,7 @@
 {
   "domain": "hysen2pfc",
   "name": "hysen2pfc",
-  "documentation": "https://github.com/uspass/hysen2pfc/blob/master/README.md",
+  "documentation": "https://github.com/baurzhan/hysen2pfc/blob/master/README.md",
   "dependencies": [],
   "codeowners": ["@uss"],
   "requirements": ["pythoncrc==1.21"]
