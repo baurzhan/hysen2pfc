@@ -26,15 +26,16 @@ from homeassistant.components.climate.const import (
     CURRENT_HVAC_HEAT,
     CURRENT_HVAC_COOL,
     CURRENT_HVAC_FAN,
+    CURRENT_HVAC_OFF,
     PRESET_NONE,
     HVAC_MODE_AUTO,
+    HVAC_MODE_OFF,
     FAN_AUTO,
     FAN_LOW,
     FAN_MEDIUM,
     FAN_HIGH,
 )
 
-from homeassistant.components.fan import SPEED_LOW, SPEED_MEDIUM, SPEED_HIGH
 from homeassistant.const import (
     CONF_NAME,
     CONF_HOST,
@@ -120,11 +121,11 @@ SCHEDULE_MODES = [
     STATE_SCHEDULE_1234567,
 ]
 
-HVAC_MODES = [HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_FAN_ONLY]
+HVAC_MODES = [HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_FAN_ONLY, HVAC_MODE_OFF]
 
-FAN_MODES = [SPEED_LOW, SPEED_MEDIUM, SPEED_HIGH]
+FAN_MODES = [FAN_AUTO, FAN_LOW, FAN_MEDIUM, FAN_HIGH]
 
-FAN_MODES_MANUAL = [SPEED_LOW, SPEED_MEDIUM, SPEED_HIGH]
+FAN_MODES_MANUAL = [FAN_LOW, FAN_MEDIUM, FAN_HIGH]
 
 HYSEN_KEY_LOCK_TO_HASS = {
     HYSEN_2PFC_KEY_ALL_UNLOCKED: STATE_ALL_UNLOCKED,
@@ -198,12 +199,6 @@ HASS_SCHEDULE_TO_HYSEN = {
 }
 
 HYSEN_MODE_TO_HASS = {
-    HYSEN_2PFC_MODE_FAN: CURRENT_HVAC_FAN,
-    HYSEN_2PFC_MODE_COOL: CURRENT_HVAC_COOL,
-    HYSEN_2PFC_MODE_HEAT: CURRENT_HVAC_HEAT,
-}
-
-HYSEN_MODE_TO_ACTION = {
     HYSEN_2PFC_MODE_FAN: HVAC_MODE_FAN_ONLY,
     HYSEN_2PFC_MODE_COOL: HVAC_MODE_COOL,
     HYSEN_2PFC_MODE_HEAT: HVAC_MODE_HEAT,
@@ -642,6 +637,9 @@ class Hysen2PipeFanCoil(ClimateDevice):
         """Return hvac operation ie. heat, cool mode.
         Need to be one of HVAC_MODE_*.
         """
+        _LOGGER.debug("hvac_mode: %s %s", self._hysen_device.power_state, self._hysen_device.operation_mode)
+        if self._hysen_device.power_state == HYSEN_2PFC_POWER_OFF:
+            return HVAC_MODE_OFF 
         return HYSEN_MODE_TO_HASS[self._hysen_device.operation_mode]
 
     @property
@@ -649,7 +647,19 @@ class Hysen2PipeFanCoil(ClimateDevice):
         """Return the current running hvac operation if supported.
         Need to be one of CURRENT_HVAC_*.
         """
-        return HYSEN_MODE_TO_ACTION[self._hysen_device.operation_mode]
+        _LOGGER.debug("hvac_action: %s %s", self._hysen_device.power_state, self._hysen_device.operation_mode)
+        if self._hysen_device.power_state == HYSEN_2PFC_POWER_OFF:
+            return CURRENT_HVAC_OFF
+        if self._hysen_device.operation_mode == HYSEN_2PFC_MODE_HEAT:
+            return CURRENT_HVAC_HEAT
+        elif self._hysen_device.operation_mode == HYSEN_2PFC_MODE_COOL:
+            return CURRENT_HVAC_COOL
+        elif self._hysen_device.operation_mode == HYSEN_2PFC_MODE_FAN:
+            return CURRENT_HVAC_FAN
+            
+
+        
+
 
     @property
     def preset_mode(self) -> str:
@@ -693,7 +703,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
     @property
     def is_on(self):
         """Return true if device is on."""
-        return self._hysen_device.power_state
+        return self._hysen_device.power_state == HYSEN_2PFC_POWER_ON
 
     @property
     def fan_mode(self):
@@ -712,7 +722,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
     def supported_features(self):
         """Returns the list of supported features."""
         if self._hysen_device.operation_mode == HYSEN_2PFC_MODE_FAN:
-            return SUPPORT_FAN_MODE
+            return SUPPORT_FAN_MODE 
         else:
             return SUPPORT_FAN_MODE | SUPPORT_TARGET_TEMPERATURE
     @property
@@ -741,12 +751,18 @@ class Hysen2PipeFanCoil(ClimateDevice):
         else:
             return None
 
+    async def async_added_to_hass(self) -> None:
+        """Run when entity about to added."""
+        await super().async_added_to_hass()
+        await self.async_set_time_now()
+
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         temp = int(kwargs.get(ATTR_TEMPERATURE))
         await self._try_command(
             "Error in set_temperature", self._hysen_device.set_target_temp, temp
         )
+        await self.async_update_ha_state()
 
     async def async_set_fan_mode(self, fan_mode):
         """Set fan speed."""
@@ -762,10 +778,12 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_fan_mode,
             HASS_FAN_TO_HYSEN[fan_mode.lower()],
         )
+        await self.async_update_ha_state()
 
     async def async_set_preset_mode(self, preset_mode) -> None:
         """Set new preset mode."""
         self._preset_mode = preset_mode
+        await self.async_update_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode) -> None:
         """Set operation mode."""
@@ -776,27 +794,34 @@ class Hysen2PipeFanCoil(ClimateDevice):
                 hvac_mode,
             )
             return
-        await self._try_command(
-            "Error in set_operation_mode",
-            self._hysen_device.set_operation_mode,
-            HASS_MODE_TO_HYSEN[hvac_mode.lower()],
-        )
+        _LOGGER.debug("async_set_hvac_mode: %s", hvac_mode)
+        if hvac_mode.lower() == HVAC_MODE_OFF:
+            await self._try_command(
+            "Error in turn_off",
+            self._hysen_device.set_power,
+            HASS_POWER_STATE_TO_HYSEN[False])
+        else:
+            if self._hysen_device.power_state == HYSEN_2PFC_POWER_OFF:
+                await self._try_command(
+                "Error in turn_on",
+                self._hysen_device.set_power,
+                HASS_POWER_STATE_TO_HYSEN[True])
+            await self._try_command(
+                "Error in set_operation_mode",
+                self._hysen_device.set_operation_mode,
+                HASS_MODE_TO_HYSEN[hvac_mode.lower()],
+            )
+        await self.async_update_ha_state()
 
     async def async_turn_on(self):
         """Turn device on."""
-        await self._try_command(
-            "Error in turn_on",
-            self._hysen_device.set_power,
-            HASS_POWER_STATE_TO_HYSEN[True],
-        )
+        _LOGGER.debug("async_turn_on called")
+        await self.async_set_hvac_mode(HVAC_MODE_HEAT)
 
     async def async_turn_off(self):
         """Turn device off."""
-        await self._try_command(
-            "Error in turn_off",
-            self._hysen_device.set_power,
-            HASS_POWER_STATE_TO_HYSEN[False],
-        )
+        _LOGGER.debug("async_turn_off called")
+        await self.async_set_hvac_mode(HVAC_MODE_OFF)
 
     async def async_set_key_lock(self, key_lock):
         """Set key lock 0 = Unlocked, 1 = All buttons locked except Power, 2 = All buttons locked"""
@@ -812,6 +837,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_remote_lock,
             HASS_KEY_LOCK_TO_HYSEN[key_lock.lower()],
         )
+        await self.async_update_ha_state()
 
     async def async_set_hysteresis(self, hysteresis):
         """Set hysteresis. 0 = 0.5 degree Celsius, 1 = 1 degree Celsius"""
@@ -827,12 +853,14 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_hysteresis,
             HASS_HYSTERESIS_TO_HYSEN[hysteresis.lower()],
         )
+        await self.async_update_ha_state()
 
     async def async_set_calibration(self, calibration):
         """Set temperature calibration. Range -5~+5 degree Celsius in 0.1 degree Celsius step."""
         await self._try_command(
             "Error in set_calibration", self._hysen_device.set_calibration, calibration
         )
+        await self.async_update_ha_state()
 
     async def async_set_cooling_max_temp(self, temp):
         """Set cooling upper limit."""
@@ -841,6 +869,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_cooling_max_temp,
             temp,
         )
+        await self.async_update_ha_state()
 
     async def async_set_cooling_min_temp(self, temp):
         """Set cooling lower limit."""
@@ -849,6 +878,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_cooling_min_temp,
             temp,
         )
+        await self.async_update_ha_state()
 
     async def async_set_heating_max_temp(self, temp):
         """Set heating upper limit."""
@@ -857,6 +887,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_heating_max_temp,
             temp,
         )
+        await self.async_update_ha_state()
 
     async def async_set_heating_min_temp(self, temp):
         """Set heating lower limit."""
@@ -865,6 +896,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_heating_min_temp,
             temp,
         )
+        await self.async_update_ha_state()
 
     async def async_set_fan_control(self, fan_control):
         """Set fan coil control mode, 0 = Fan is stopped when target temp reached, 1 = Fan is spinning when target temp reached."""
@@ -873,6 +905,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_fan_control,
             HASS_FAN_CONTROL_TO_HYSEN[fan_control],
         )
+        await self.async_update_ha_state()
 
     async def async_set_frost_protection(self, frost_protection):
         """Set frost_protection 0 = Off, 1 = When power off keeps the room temp between 5 to 7 degree."""
@@ -881,6 +914,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_frost_protection,
             HASS_FROST_PROTECTION_TO_HYSEN[frost_protection],
         )
+        await self.async_update_ha_state()
 
     async def async_set_time_now(self):
         """Set device time to system time."""
@@ -898,6 +932,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             clock_sec,
             clock_weekday,
         )
+        await self.async_update_ha_state()
 
     async def async_set_schedule(self, schedule):
         """Set schedule mode 0 = Today 1 = 12345,67 2 = 123456,7 3 = 1234567."""
@@ -913,6 +948,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             self._hysen_device.set_weekly_schedule,
             HASS_SCHEDULE_TO_HYSEN[schedule.lower()],
         )
+        await self.async_update_ha_state()
 
     async def async_set_period1_on(self, enable=None, hour=None, min=None):
         """Set period 1 start."""
@@ -923,6 +959,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             hour,
             min,
         )
+        await self.async_update_ha_state()
 
     async def async_set_period1_off(self, enable=None, hour=None, min=None):
         """Set period 1 end."""
@@ -933,6 +970,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             hour,
             min,
         )
+        await self.async_update_ha_state()
 
     async def async_set_period2_on(self, enable=None, hour=None, min=None):
         """Set period 2 start."""
@@ -943,6 +981,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             hour,
             min,
         )
+        await self.async_update_ha_state()
 
     async def async_set_period2_off(self, enable=None, hour=None, min=None):
         """Set period 2 end."""
@@ -953,6 +992,7 @@ class Hysen2PipeFanCoil(ClimateDevice):
             hour,
             min,
         )
+        await self.async_update_ha_state()
 
     async def async_authenticate_device(self):
         """Connect to device ."""
