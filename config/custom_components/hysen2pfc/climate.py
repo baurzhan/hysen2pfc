@@ -800,6 +800,17 @@ class Hysen2PipeFanCoil(ClimateDevice):
             "Error in turn_off",
             self._hysen_device.set_power,
             HASS_POWER_STATE_TO_HYSEN[False])
+        elif hvac_mode.lower() == HVAC_MODE_FAN_ONLY and self._hysen_device.fan_mode == HYSEN_2PFC_FAN_AUTO:
+            await self._try_command(
+                "Error in set_fan_mode",
+                self._hysen_device.set_fan_mode,
+                HYSEN_2PFC_FAN_LOW,
+            )
+            await self._try_command(
+                "Error in set_operation_mode",
+                self._hysen_device.set_operation_mode,
+                HASS_MODE_TO_HYSEN[hvac_mode.lower()],
+            )
         else:
             if self._hysen_device.power_state == HYSEN_2PFC_POWER_OFF:
                 await self._try_command(
